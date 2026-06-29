@@ -378,7 +378,8 @@ const byDeadline = (a: Todo, b: Todo) => {
 
 export async function getTodos(): Promise<Todo[]> {
   if (!cloud) return read<Todo[]>(KEYS.todos, []).sort(byDeadline)
-  const { data } = await supabase.from('todos').select('*').eq('user_id', USER_ID)
+  const { data, error } = await supabase.from('todos').select('*').eq('user_id', USER_ID)
+  if (error) console.error('getTodos error:', error.message)
   return ((data as Todo[]) || []).sort(byDeadline)
 }
 
@@ -388,7 +389,8 @@ export async function addTodo(title: string, deadline: string | null): Promise<T
     write(KEYS.todos, [...read<Todo[]>(KEYS.todos, []), todo])
     return todo
   }
-  await supabase.from('todos').insert({ ...todo, user_id: USER_ID })
+  const { error } = await supabase.from('todos').insert({ ...todo, user_id: USER_ID })
+  if (error) console.error('addTodo error:', error.message)
   return todo
 }
 
@@ -401,6 +403,7 @@ export async function toggleTodo(id: string): Promise<void> {
     return
   }
   await supabase.from('todos').update({ done: !t.done }).eq('id', id).eq('user_id', USER_ID)
+    .then(({ error }) => { if (error) console.error('toggleTodo error:', error.message) })
 }
 
 export async function deleteTodo(id: string): Promise<void> {
@@ -409,4 +412,5 @@ export async function deleteTodo(id: string): Promise<void> {
     return
   }
   await supabase.from('todos').delete().eq('id', id).eq('user_id', USER_ID)
+    .then(({ error }) => { if (error) console.error('deleteTodo error:', error.message) })
 }
