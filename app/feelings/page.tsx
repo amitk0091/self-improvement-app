@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { getFeeling, saveFeeling, todayStr } from '@/lib/store'
+import { getFeeling, getFeelings, saveFeeling, todayStr, type Feeling } from '@/lib/store'
 
 export default function FeelingsPage() {
   const [feeling, setFeeling] = useState<{
@@ -22,6 +22,13 @@ export default function FeelingsPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [saveStatus, setSaveStatus] = useState<{ type: string; message: string } | null>(null)
   const [date, setDate] = useState(todayStr())
+  const [history, setHistory] = useState<Feeling[]>([])
+
+  const refreshHistory = async () => setHistory(await getFeelings())
+
+  useEffect(() => {
+    refreshHistory()
+  }, [])
 
   useEffect(() => {
     (async () => {
@@ -54,6 +61,7 @@ export default function FeelingsPage() {
       })
       setFeeling(saved)
       setSaveStatus({ type: 'success', message: 'Feeling entry saved successfully!' })
+      await refreshHistory()
     } catch (error) {
       console.error('Error saving feeling:', error)
       setSaveStatus({ type: 'error', message: 'Failed to save feeling. Please try again.' })
@@ -195,6 +203,40 @@ export default function FeelingsPage() {
               {isSaving ? 'Saving...' : 'Save Feeling'}
             </button>
           </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">History</h2>
+          {history.length === 0 ? (
+            <p className="text-center text-gray-500 dark:text-gray-400 py-6">No entries yet. Save your first feeling above.</p>
+          ) : (
+            <ul className="divide-y divide-gray-200 dark:divide-gray-700">
+              {history.map((f) => (
+                <li key={f.id}>
+                  <button
+                    onClick={() => setDate(f.date)}
+                    className={`w-full text-left py-3 px-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${f.date === date ? 'bg-indigo-50 dark:bg-indigo-900/20' : ''}`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-gray-900 dark:text-white">
+                        {new Date(f.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                      </span>
+                      <span className="flex gap-3 text-sm text-gray-600 dark:text-gray-300">
+                        <span title="Mood">😊 {f.mood}</span>
+                        <span title="Motivation">⚡ {f.motivation}</span>
+                        <span title="Stress">😰 {f.stress}</span>
+                      </span>
+                    </div>
+                    {(f.gratitude || f.note) && (
+                      <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 truncate">
+                        {f.gratitude || f.note}
+                      </p>
+                    )}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
     </div>

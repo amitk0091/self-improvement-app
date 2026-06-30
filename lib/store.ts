@@ -100,7 +100,12 @@ const KEYS = {
   todos: 'pos.todos',
 } as const
 
-export const todayStr = () => new Date().toISOString().split('T')[0]
+// Local calendar date (YYYY-MM-DD). Uses the device timezone, not UTC, so the
+// "today" shown on mobile near midnight matches the user's actual day.
+export const todayStr = () => {
+  const d = new Date()
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().split('T')[0]
+}
 const uid = () =>
   typeof crypto !== 'undefined' && crypto.randomUUID
     ? crypto.randomUUID()
@@ -143,8 +148,9 @@ export async function saveDiary(entry: Omit<DiaryEntry, 'id'> & { id?: string })
     return saved
   }
   const { id, ...rest } = entry
-  const { data } = await supabase.from('diary_entries').upsert({ ...rest, user_id: USER_ID }, { onConflict: 'user_id,entry_date' }).select().single()
-  return (data as DiaryEntry) ?? { ...entry, id: id ?? uid() }
+  const { data, error } = await supabase.from('diary_entries').upsert({ ...rest, user_id: USER_ID }, { onConflict: 'user_id,entry_date' }).select().single()
+  if (error) throw new Error(error.message)
+  return data as DiaryEntry
 }
 
 // ---- Feelings ----
@@ -158,6 +164,13 @@ export async function getFeelingsRange(fromDate: string): Promise<Feeling[]> {
   const { data } = await supabase.from('feelings').select('*').eq('user_id', USER_ID).gte('date', fromDate).order('date', { ascending: true })
   return (data as Feeling[]) || []
 }
+// All feelings, most recent first.
+export async function getFeelings(): Promise<Feeling[]> {
+  if (!cloud) return read<Feeling[]>(KEYS.feelings, []).sort((a, b) => b.date.localeCompare(a.date))
+  const { data, error } = await supabase.from('feelings').select('*').eq('user_id', USER_ID).order('date', { ascending: false })
+  if (error) console.error('getFeelings error:', error.message)
+  return (data as Feeling[]) || []
+}
 export async function saveFeeling(f: Omit<Feeling, 'id'> & { id?: string }): Promise<Feeling> {
   if (!cloud) {
     const all = read<Feeling[]>(KEYS.feelings, [])
@@ -168,8 +181,9 @@ export async function saveFeeling(f: Omit<Feeling, 'id'> & { id?: string }): Pro
     return saved
   }
   const { id, ...rest } = f
-  const { data } = await supabase.from('feelings').upsert({ ...rest, user_id: USER_ID }, { onConflict: 'user_id,date' }).select().single()
-  return (data as Feeling) ?? { ...f, id: id ?? uid() }
+  const { data, error } = await supabase.from('feelings').upsert({ ...rest, user_id: USER_ID }, { onConflict: 'user_id,date' }).select().single()
+  if (error) throw new Error(error.message)
+  return data as Feeling
 }
 
 // ---- Overthoughts ----

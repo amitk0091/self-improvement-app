@@ -11,6 +11,7 @@ export default function GoalsPage() {
   const [name, setName] = useState('')
   const [category, setCategory] = useState<Goal['category']>('swe')
   const [milestones, setMilestones] = useState('')
+  const [filter, setFilter] = useState<'all' | Goal['category']>('all')
 
   const refresh = async () => setGoals(await getGoals())
 
@@ -41,6 +42,8 @@ export default function GoalsPage() {
   const overall = goals.length
     ? Math.round(goals.reduce((s, g) => s + goalProgress(g), 0) / goals.length)
     : 0
+
+  const visibleGoals = filter === 'all' ? goals : goals.filter((g) => g.category === filter)
 
   if (loading) {
     return (
@@ -105,39 +108,63 @@ export default function GoalsPage() {
           {goals.length === 0 ? (
             <p className="text-center text-gray-500 dark:text-gray-400 py-8">No goals yet. Add one above.</p>
           ) : (
-            goals.map((g) => {
-              const pct = goalProgress(g)
-              return (
-                <div key={g.id} className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <h3 className="text-lg font-medium text-gray-900 dark:text-white">{g.name}</h3>
-                      <span className="text-xs uppercase text-indigo-600 dark:text-indigo-400">{g.category}</span>
+            <>
+              <div className="flex flex-wrap gap-2">
+                {(['all', ...CATEGORIES] as const).map((c) => {
+                  const count = c === 'all' ? goals.length : goals.filter((g) => g.category === c).length
+                  return (
+                    <button
+                      key={c}
+                      onClick={() => setFilter(c)}
+                      className={`px-3 py-1 rounded-full text-xs font-medium uppercase transition-colors ${
+                        filter === c
+                          ? 'bg-indigo-600 text-white'
+                          : 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600'
+                      }`}
+                    >
+                      {c} ({count})
+                    </button>
+                  )
+                })}
+              </div>
+              {visibleGoals.length === 0 ? (
+                <p className="text-center text-gray-500 dark:text-gray-400 py-8">No goals in this category.</p>
+              ) : (
+                visibleGoals.map((g) => {
+                  const pct = goalProgress(g)
+                  return (
+                    <div key={g.id} className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <h3 className="text-lg font-medium text-gray-900 dark:text-white">{g.name}</h3>
+                          <span className="text-xs uppercase text-indigo-600 dark:text-indigo-400">{g.category}</span>
+                        </div>
+                        <button onClick={() => handleDelete(g.id)} className="text-sm text-red-500 hover:text-red-600">Delete</button>
+                      </div>
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                          <div className="bg-indigo-600 h-2 rounded-full" style={{ width: `${pct}%` }} />
+                        </div>
+                        <span className="text-sm text-gray-600 dark:text-gray-300">{pct}%</span>
+                      </div>
+                      <ul className="space-y-2">
+                        {g.milestones.map((m) => (
+                          <li key={m.id} className="flex items-center text-sm text-gray-700 dark:text-gray-200">
+                            <input
+                              type="checkbox"
+                              checked={m.done}
+                              onChange={() => handleToggle(g.id, m.id)}
+                              className="mr-2 h-4 w-4 rounded"
+                            />
+                            <span className={m.done ? 'line-through text-gray-400' : ''}>{m.label}</span>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
-                    <button onClick={() => handleDelete(g.id)} className="text-sm text-red-500 hover:text-red-600">Delete</button>
-                  </div>
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                      <div className="bg-indigo-600 h-2 rounded-full" style={{ width: `${pct}%` }} />
-                    </div>
-                    <span className="text-sm text-gray-600 dark:text-gray-300">{pct}%</span>
-                  </div>
-                  <ul className="space-y-2">
-                    {g.milestones.map((m) => (
-                      <li key={m.id} className="flex items-center text-sm text-gray-700 dark:text-gray-200">
-                        <input
-                          type="checkbox"
-                          checked={m.done}
-                          onChange={() => handleToggle(g.id, m.id)}
-                          className="mr-2 h-4 w-4 rounded"
-                        />
-                        <span className={m.done ? 'line-through text-gray-400' : ''}>{m.label}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )
-            })
+                  )
+                })
+              )}
+            </>
           )}
         </div>
       </div>
